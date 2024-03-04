@@ -4,6 +4,8 @@
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
+#include <omp.h>
+#include <chrono>
 
 // Verlet Integration
 //  In Verlet integration, instead of explicitly calculating velocities, you calculate the next position based on the current position and the previous position.
@@ -12,11 +14,11 @@
 // sf::Vector2f --> class for representing 2-dimensional vector with floating-point components (namspace::className)
 
 const int WINDOW_WIDTH = 800;  // Width of the window
-const int WINDOW_HEIGHT = 600; // Height of the window
-const int CLOTH_SIZE = 100;     // Cloth size (100x100)
-const float GRAVITY = 0.5f;    // Gravity acceleration
+const int WINDOW_HEIGHT = 800; // Height of the window
+const int CLOTH_SIZE = 100;     // Cloth size (nxn)
+const float GRAVITY = 1.8f;    // Gravity acceleration
 const float TIME_STEP = 0.1f;  // Time step for Verlet integration
-const float MAX_STICK_LEN = 5.0f; //for the stick length between points
+const float stickSize = 5.0f; 
 
 // Point struct representing a point in the cloth
 struct Point
@@ -61,7 +63,7 @@ public:
     ClothSimulation() : window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Cloth Simulation")
     {
         // Set the position of the window to (100, 100)
-        window.setPosition(sf::Vector2i(500, 100));
+        window.setPosition(sf::Vector2i(800, 50));
     }
 
     // Method to initialize the cloth simulation
@@ -74,7 +76,7 @@ public:
             {
                 // setting the initial positions for the points
                 // cast index i to float * fixed distance between adjacent points on x-axis + 150 units right
-                float x = static_cast<float>(i) * MAX_STICK_LEN + 150.0f;
+                float x = static_cast<float>(i) * stickSize + 150.0f;
                 // cast index j to float * fixed distance between adjacent points on y-axis
                 float y = 0.0f;
                 // create a point and add it to the clothPoints vector
@@ -125,34 +127,36 @@ public:
                 continue;
             }
 
-            sf::Vector2f acceleration(0.0f, GRAVITY);
+            {
+                sf::Vector2f acceleration(0.0f, GRAVITY);
 
-            sf::Vector2f temp = point.position;
-            point.position = 2.0f * point.position - point.oldPosition + acceleration * TIME_STEP * TIME_STEP; // Verlet integration with gravity
-            point.oldPosition = temp;
+                sf::Vector2f temp = point.position;
+                point.position = 2.0f * point.position - point.oldPosition + acceleration * TIME_STEP * TIME_STEP;
+                point.oldPosition = temp;
 
-            iterations++;
+                iterations++;
+            }
 
             // check if the system has settled
             //(aka give it 5 000 000 iterations to settle then move a random point)
-            if (iterations >= 5000000)
+            if (iterations >= 10000000)
             {
-                // Randomly move a point
-                int randomIndex = rand() % clothPoints.size(); // Generate a random index
-                Point &randomPoint = clothPoints[randomIndex]; // Get a reference to the random point
+                // randomly move a point
+                int randomIndex = rand() % clothPoints.size(); // generate a random index
+                Point &randomPoint = clothPoints[randomIndex]; // get a reference to the random point
                 std::cout << "I am moving random point " << randomIndex << "which is " << randomPoint.position.x << ", " << randomPoint.position.y << std::endl;
 
                 // make sure the random point is not pinned
                 if (!randomPoint.pinned)
                 {
-                    // Generate a random angle in radians
+                    // generate a random angle in radians
                     float angle = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2 * 3.14159f;
 
-                    // Calculate movement in x and y directions
+                    // calculate movement in x and y directions
                     float moveX = cos(angle) * 60.0f;
                     float moveY = sin(angle) * 60.0f;
 
-                    // Update the position of the random point
+                    // update the position of the random point
                     randomPoint.position.x += moveX;
                     randomPoint.position.y += moveY;
                 }
@@ -160,21 +164,22 @@ public:
                 iterations = 0;
             }
 
-            // Collision with bottom of window
+            //only effective when cloth size is longer then the screen height
+            //check for collision with bottom of window
             if (point.position.y >= WINDOW_HEIGHT)
             {
-                point.position.y = WINDOW_HEIGHT; // Stop at the bottom
+                point.position.y = WINDOW_HEIGHT; //stop at the bottom
             }
         }
 
-        // Apply constraints (sticks)
+        // Apply constraints (sticks) in parallel
         for (auto &stick : sticks)
         {
             // increase stick length as the points fall (to get the unravel effect)
             // returns minimum between a and b
-            // aka increase stick.length by 1.0f each time but if stick length > MAX_STICK_LEN
-            // set stick.length = MAX_STICK_LEN;
-            stick.length = std::min(MAX_STICK_LEN, stick.length + 1.0f);
+            // aka increase stick.length by 1.0f each time but if stick length > stickSize
+            // set stick.length = stickSize;
+            stick.length = std::min(stickSize, stick.length + 1.0f);
 
             sf::Vector2f diff = getDifference(stick.p1, stick.p2);
             float diffFactor = (stick.length - getLength(diff)) / getLength(diff) * 0.5f;
