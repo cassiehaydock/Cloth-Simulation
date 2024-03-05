@@ -18,7 +18,7 @@ const int WINDOW_HEIGHT = 800; // Height of the window
 const int CLOTH_SIZE = 100;     // Cloth size (nxn)
 const float GRAVITY = 1.8f;    // Gravity acceleration
 const float TIME_STEP = 0.1f;  // Time step for Verlet integration
-const float stickSize = 5.0f; 
+const float STICK_SIZE = 5.0f; 
 
 // Point struct representing a point in the cloth
 struct Point
@@ -76,7 +76,7 @@ public:
             {
                 // setting the initial positions for the points
                 // cast index i to float * fixed distance between adjacent points on x-axis + 150 units right
-                float x = static_cast<float>(i) * stickSize + 150.0f;
+                float x = static_cast<float>(i) * STICK_SIZE + 150.0f;
                 // cast index j to float * fixed distance between adjacent points on y-axis
                 float y = 0.0f;
                 // create a point and add it to the clothPoints vector
@@ -177,9 +177,9 @@ public:
         {
             // increase stick length as the points fall (to get the unravel effect)
             // returns minimum between a and b
-            // aka increase stick.length by 1.0f each time but if stick length > stickSize
-            // set stick.length = stickSize;
-            stick.length = std::min(stickSize, stick.length + 1.0f);
+            // aka increase stick.length by 1.0f each time but if stick length > STICK_SIZE
+            // set stick.length = STICK_SIZE;
+            stick.length = std::min(STICK_SIZE, stick.length + 1.0f);
 
             sf::Vector2f diff = getDifference(stick.p1, stick.p2);
             float diffFactor = (stick.length - getLength(diff)) / getLength(diff) * 0.5f;
